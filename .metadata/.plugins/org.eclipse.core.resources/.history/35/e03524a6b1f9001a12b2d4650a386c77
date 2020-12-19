@@ -1,0 +1,138 @@
+#include "stm32f1xx_hal.h"
+#include "stm32f1xx_nucleo.h"
+#include "stm32f1_uart.h"
+#include "stm32f1_sys.h"
+#include "macro_types.h"
+#include "stm32f1_gpio.h"
+#include "stdlib.h"
+//#include "stdbool.h"
+
+// accelerometre
+#include "MPU6050/stm32f1_mpu6050.h"
+
+// ecran
+#include "tft_ili9341/stm32f1_ili9341.h"
+
+// variables declaration
+char accXArray[10];
+char accYArray[10];
+char accZArray[10];
+
+char gyrXArray[10];
+char gyrYArray[10];
+char gyrZArray[10];
+
+char tempArray[10];
+
+int accX;
+int accY;
+int accZ;
+
+int gyrX;
+int gyrY;
+int gyrZ;
+
+int temp;
+
+void writeLED(bool_e b)
+{
+	HAL_GPIO_WritePin(LED_GREEN_GPIO, LED_GREEN_PIN, b);
+}
+
+bool_e readButton(void)
+{
+	return HAL_GPIO_ReadPin(BLUE_BUTTON_GPIO, BLUE_BUTTON_PIN);
+}
+
+MPU6050_t datas;
+
+int main(void)
+{
+	//Initialisation de la couche logicielle HAL (Hardware Abstraction Layer)
+	//Cette ligne doit rester la première étape de la fonction main().
+	HAL_Init();
+
+
+	//Initialisation de l'UART2 à la vitesse de 115200 bauds/secondes (92kbits/s) PA2 : Tx  | PA3 : Rx.
+	//Attention, les pins PA2 et PA3 ne sont pas reliées jusqu'au connecteur de la Nucleo.
+	//Ces broches sont redirigées vers la sonde de débogage, la liaison UART étant ensuite encapsulée sur l'USB vers le PC de développement.
+	UART_init(UART2_ID,115200);
+
+	//"Indique que les printf sortent vers le périphérique UART2."
+	SYS_set_std_usart(UART2_ID, UART2_ID, UART2_ID);
+
+	//Initialisation du port de la led Verte (carte Nucleo)
+	BSP_GPIO_PinCfg(LED_GREEN_GPIO, LED_GREEN_PIN, GPIO_MODE_OUTPUT_PP,GPIO_NOPULL,GPIO_SPEED_FREQ_HIGH);
+
+
+	//Initialisation du port du bouton bleu (carte Nucleo)
+	BSP_GPIO_PinCfg(BLUE_BUTTON_GPIO, BLUE_BUTTON_PIN, GPIO_MODE_INPUT,GPIO_PULLUP,GPIO_SPEED_FREQ_HIGH);
+
+	// Initialise la liaison I2C, ainsi que l'accelerometre
+	MPU6050_Init(&datas, GPIOA, GPIO_PIN_0, MPU6050_Device_0, MPU6050_Accelerometer_8G, MPU6050_Gyroscope_2000s);
+
+	// screen interface
+	MPU6050_ReadAll(&datas);
+
+	// draw array lines
+	ILI9341_Init();
+	ILI9341_Fill(ILI9341_COLOR_WHITE);
+	ILI9341_DrawLine(120, 0, 120, 220, ILI9341_COLOR_BLACK);
+	ILI9341_DrawLine(0, 225, 240, 225, ILI9341_COLOR_BLACK);
+
+	ILI9341_DrawLine(0, 40, 240, 40, ILI9341_COLOR_BLACK);
+	ILI9341_DrawLine(0, 260, 240, 260, ILI9341_COLOR_BLACK);
+
+	// put text in cases
+	// unlock bigger font size in stm32f1_fonts.c/.h
+	ILI9341_Puts(44, 12, "Acc", &Font_11x18, ILI9341_COLOR_BLACK, ILI9341_COLOR_WHITE);
+	ILI9341_Puts(164, 12, "Gyr", &Font_11x18, ILI9341_COLOR_BLACK, ILI9341_COLOR_WHITE);
+	ILI9341_Puts(98, 231, "Temp", &Font_11x18, ILI9341_COLOR_BLACK, ILI9341_COLOR_WHITE);
+
+	// temperature
+	// ° doesn't work
+	ILI9341_Puts(120, 285, " °C", &Font_11x18, ILI9341_COLOR_BLACK, ILI9341_COLOR_WHITE);
+
+	// acc coordinates
+
+	ILI9341_DrawLine(0, 100, 240, 100, ILI9341_COLOR_BLACK);
+	ILI9341_DrawLine(0, 165, 240, 165, ILI9341_COLOR_BLACK);
+
+	ILI9341_Puts(15, 63, "X: ", &Font_11x18, ILI9341_COLOR_BLACK, ILI9341_COLOR_WHITE);
+	ILI9341_Puts(15, 125, "Y: ", &Font_11x18, ILI9341_COLOR_BLACK, ILI9341_COLOR_WHITE);
+	ILI9341_Puts(15, 187, "Z: ", &Font_11x18, ILI9341_COLOR_BLACK, ILI9341_COLOR_WHITE);
+
+while(1)
+{
+	MPU6050_ReadAll(&datas);
+
+	accX = datas.Accelerometer_X;
+	accY = datas.Accelerometer_Y;
+	accZ= datas.Accelerometer_Z;
+
+	gyrX = datas.Gyroscope_X;
+	gyrY = datas.Gyroscope_Y;
+	gyrZ = datas.Gyroscope_Z;
+
+	temp = (int)datas.Temperature;
+
+	itoa(accX, accXArray, 10);
+	itoa(accY, accYArray, 10);
+	itoa(accZ, accZArray, 10);
+
+	itoa(accX, accXArray, 10);
+	itoa(accY, accYArray, 10);
+	itoa(accZ, accZArray, 10);
+
+	itoa(temp, tempArray, 10);
+
+	// acc
+	ILI9341_Puts(50, 63, accXArray, &Font_11x18, ILI9341_COLOR_BROWN, ILI9341_COLOR_WHITE);
+
+	//gyr
+
+
+	// temp
+	ILI9341_Puts(105, 285, tempArray, &Font_11x18, ILI9341_COLOR_BLACK, ILI9341_COLOR_WHITE);
+	}
+}
